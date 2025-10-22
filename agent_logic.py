@@ -7,7 +7,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.agents import create_tool_calling_agent, AgentExecutor
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.memory import ChatMessageHistory
+from langchain_community.chat_message_histories import ChatMessageHistory
 
 # Muat .env
 load_dotenv()
@@ -54,6 +54,11 @@ def get_qa_agent_executor():
     
     tools = [read_pdf_content, create_testcase]
     
+    # <<< TAMBAHKAN PRINT DI SINI >>>
+    loaded_api_key = os.getenv("GOOGLE_API_KEY")
+    print(f"--- [DEBUG] GOOGLE_API_KEY loaded: {loaded_api_key is not None} ---") 
+    # Jangan print key-nya langsung ke log untuk keamanan
+
     agent_llm = ChatGoogleGenerativeAI(
         model="gemini-1.5-pro-latest", 
         temperature=0, 
