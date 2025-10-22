@@ -32,19 +32,34 @@ def read_pdf_content(file_path: str) -> str:
         return f"Gagal membaca file '{file_path}': {str(e)}"
 
 @tool
-def create_testcase(prd_context: str) -> str:
+def create_testcase(prd_context: str, format: str = "steps") -> str:
     """
-    Membuat testcase. 
-    Tool ini membutuhkan file PRD sebagai konteks testcase yang akan dibuat.
+    Membuat test case baru berdasarkan PRD dalam format yang ditentukan.
+    Argumen:
+        prd_context (str): Teks lengkap dari PRD.
+        format (str): Format output, bisa 'steps' (default) atau 'bdd'.
     """
-    logger.info("Memanggil tool create_testcase")
+    logger.info(f"Memanggil tool create_testcase dengan format: {format}")
     try:
         llm = ChatGoogleGenerativeAI(
-            model="gemini-1.5-pro-latest",
+            model=settings.model, # Gunakan nama model yang valid
             temperature=0.1,
-            google_api_key=settings.google_api_key # <<< Ambil dari config
+            google_api_key=settings.google_api_key
         )
-        # ... (prompt sama) ...
+
+        if format.lower() == "bdd":
+            system_prompt = "Anda adalah QA Engineer BDD. Buat test case dalam format Gherkin (Feature, Scenario, Given, When, Then) berdasarkan PRD."
+            human_prompt_template = "PRD_CONTEXT:\n{context}\n\nBuat skenario BDD:"
+        else: # Default ke 'steps'
+            system_prompt = "Anda adalah QA Engineer senior. Buat test case detail (nama, deskripsi, prekondisi, langkah & hasil) berdasarkan PRD."
+            human_prompt_template = "PRD_CONTEXT:\n{context}\n\nBuat test case format langkah:"
+
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", system_prompt),
+            ("human", human_prompt_template)
+        ])
+
+        chain = prompt | llm
         response = chain.invoke({"context": prd_context})
         return response.content
     except Exception as e:
@@ -64,7 +79,7 @@ def get_qa_agent_executor():
     tools = [read_pdf_content, create_testcase]
 
     agent_llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-pro",
+        model=settings.model,
         temperature=0,
         google_api_key=settings.google_api_key # <<< Ambil dari config
     )
