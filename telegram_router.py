@@ -44,33 +44,18 @@ async def handle_start(chat_id: int, service: TelegramService):
     await service.send_reply(chat_id, welcome_message)
 
 async def handle_help(chat_id: int, service: TelegramService):
-    """Handler untuk perintah /help."""
-    # <<< MODIFIKASI STRING INI >>>
+    # <<< UPDATE TEXT BANTUAN >>>
     help_text = """
-        👋 **Selamat Datang di QA Agent Bot!**
+Berikut perintah yang tersedia:
+`/start` - Memulai bot.
+`/help` - Menampilkan bantuan ini.
+`/set_context [teks]` - Mengatur teks PRD sebagai konteks (tempel setelah perintah).
+`/show_context` - Menampilkan konteks PRD yang aktif.
+`/clear_context` - Menghapus konteks PRD.
+`/create_tc [format]` - Membuat test case berdasarkan konteks. Format opsional: `steps` (default) atau `bdd`. Contoh: `/create_tc bdd`
 
-        Saya bisa membantu Anda membuat test case dari PRD.
-
-        **Cara Menggunakan:**
-        1.  **Atur Konteks:**
-            * Kirim (upload) file PDF ke saya, *atau*
-            * Gunakan: `/set_context [Tempel teks PRD di sini]`
-        2.  **(Opsional) Cek Konteks:** Gunakan `/show_context`
-        3.  **Buat Test Case:** Gunakan `/create_tc [format]` (format: `steps` atau `bdd`, default `steps`)
-
-        **Daftar Perintah:** ⌨️
-        * `/start` - Memulai bot.
-        * `/help` - Menampilkan bantuan ini.
-        * `/set_context [teks]` - Mengatur teks PRD sebagai konteks.
-        * `/show_context` - Menampilkan konteks PRD aktif (sebagian).
-        * `/clear_context` - Menghapus konteks PRD aktif.
-        * `/create_tc [format]` - Membuat test case dari konteks.
-            * Contoh: `/create_tc` (format steps)
-            * Contoh: `/create_tc bdd`
-
-        *Ingat: Kirim file PDF langsung untuk menjadikannya konteks.* ✨
-        """
-    # <<<----------------------->>>
+Anda juga bisa langsung mengirim (upload) file PDF untuk dijadikan konteks.
+"""
     await service.send_reply(chat_id, help_text)
 
 async def handle_set_context(chat_id: int, text: str, service: TelegramService, memory: BaseMemoryService):
