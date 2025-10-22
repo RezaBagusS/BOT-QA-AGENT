@@ -3,6 +3,7 @@ import logging
 import traceback
 import tempfile # Untuk file sementara
 import aiofiles # Untuk file async
+from typing import Optional # <<< TAMBAHKAN IMPORT INI
 from fastapi import APIRouter, Depends, Response, HTTPException
 from pydantic import BaseModel
 from agent_logic import get_agent_executor, read_pdf_content # Impor tool PDF
@@ -27,7 +28,7 @@ class Message(BaseModel):
     chat: Chat
     text: str | None = None
     document: Document | None = None
-    reply_to_message: 'Message' | None = None # <<< TAMBAHKAN REKURSIF (atau buat model terpisah yg lebih simpel)
+    reply_to_message: Optional['Message'] = None # <<< GUNAKAN Optional[]
 
 class Update(BaseModel):
     update_id: int
