@@ -19,7 +19,10 @@ load_dotenv() # Load .env jika belum
 # --- Definisi Tools ---
 @tool
 def read_pdf_content(file_path: str) -> str:
-    # ... (kode tool sama) ...
+    """
+    Membaca dan mengekstrak teks dari file PDF. 
+    Tool ini membutuhkan path file (file_path) sebagai input.
+    """
     logger.info(f"Mencoba membaca file: {file_path}")
     try:
         # ... (sama)
@@ -30,7 +33,10 @@ def read_pdf_content(file_path: str) -> str:
 
 @tool
 def create_testcase(prd_context: str) -> str:
-    # ... (kode tool sama) ...
+    """
+    Membuat testcase. 
+    Tool ini membutuhkan file PRD sebagai konteks testcase yang akan dibuat.
+    """
     logger.info("Memanggil tool create_testcase")
     try:
         llm = ChatGoogleGenerativeAI(
