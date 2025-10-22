@@ -1,15 +1,15 @@
 # main.py
 
 import os
-import httpx # Untuk mengirim pesan kembali ke Telegram
+import httpx 
 from fastapi import FastAPI, Request, Response
-from pydantic import BaseModel # Untuk validasi data dari Telegram
+from pydantic import BaseModel
 from dotenv import load_dotenv
-
-# Impor "otak" agen kita
 from agent_logic import get_qa_agent_executor
 from langchain_core.messages import HumanMessage, AIMessage
-from langchain.memory import ChatMessageHistory
+# --- GANTI IMPORT INI ---
+# from langchain.memory import ChatMessageHistory 
+from langchain_community.chat_message_histories import ChatMessageHistory # <<< BARU
 
 # --- Setup Awal ---
 load_dotenv()
@@ -18,76 +18,78 @@ app = FastAPI()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 
-# Inisialisasi Agen (hanya sekali saat startup)
 agent_executor = get_qa_agent_executor()
-
-# Manajemen Memori (Sederhana)
-# NOTE: Ini akan reset setiap server restart. Untuk produksi, gunakan database.
 chat_memory_store = {}
 
 def get_chat_history(chat_id: int) -> ChatMessageHistory:
-    """Mengambil atau membuat memori chat untuk pengguna."""
     if chat_id not in chat_memory_store:
         chat_memory_store[chat_id] = ChatMessageHistory()
     return chat_memory_store[chat_id]
 
-# --- Model Data (Validasi Pydantic) ---
-# Ini memastikan data yang masuk dari Telegram sesuai format
-
+# --- Model Data ---
 class Chat(BaseModel):
     id: int
 
 class Message(BaseModel):
     chat: Chat
-    text: str | None = None # Pesan bisa saja bukan teks (stiker, dll)
+    text: str | None = None
 
 class Update(BaseModel):
     update_id: int
-    message: Message
+    message: Message | None = None # Jadikan message opsional
 
 # --- Fungsi Helper ---
-
 async def send_telegram_reply(chat_id: int, text: str):
-    """Mengirim balasan teks ke pengguna via Telegram API."""
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(
                 f"{TELEGRAM_API_URL}/sendMessage",
                 json={"chat_id": chat_id, "text": text}
             )
-            response.raise_for_status() # Cek jika ada error HTTP
+            response.raise_for_status()
         except httpx.HTTPStatusError as e:
-            print(f"Error saat mengirim balasan: {e}")
+            print(f"Error saat mengirim balasan: {e.response.text}") # Tampilkan detail error
+        except Exception as e:
+            print(f"Error tak terduga saat mengirim balasan: {e}")
 
 # --- Endpoint Server ---
-
 @app.get("/")
 def read_root():
     return {"message": "Server QA Agent (Gemini) berjalan."}
 
 @app.post("/webhook/telegram")
 async def handle_telegram_webhook(update: Update):
-    """
-    Endpoint utama yang menerima update dari Telegram.
-    """
-    # 1. Cek apakah ada pesan teks
-    if not update.message or not update.message.text:
-        return Response(status_code=200) # Abaikan update non-teks
+    """ Endpoint utama yang menerima update dari Telegram. """
+    
+    # 1. Validasi Update (Lebih Aman)
+    if not update.message or not update.message.text or not update.message.chat:
+        print("Menerima update tanpa pesan teks atau chat ID, diabaikan.")
+        return Response(status_code=200) 
 
     chat_id = update.message.chat.id
     user_input = update.message.text
     print(f"Menerima pesan dari [Chat ID: {chat_id}]: {user_input}")
-    
-    # 2. Ambil memori chat
+
+    # --- TAMBAHKAN PENANGANAN /start DI SINI ---
+    if user_input == "/start":
+        welcome_message = "Halo! 👋 Saya adalah QA Agent Anda. Kirimkan saya perintah atau nama file PDF untuk diproses."
+        await send_telegram_reply(chat_id, welcome_message)
+        return Response(status_code=200) # Selesai, tidak perlu ke agen
+    # ------------------------------------------
+
+    # 2. Ambil memori chat (Hanya jika bukan /start)
     chat_history = get_chat_history(chat_id)
     
-    # 3. Kirim ke Agen LangChain (gunakan 'ainvoke' untuk async)
+    # 3. Kirim ke Agen LangChain
     try:
+        # Kirim notifikasi "sedang mengetik..."
+        async with httpx.AsyncClient() as client:
+           await client.post(f"{TELEGRAM_API_URL}/sendChatAction", json={"chat_id": chat_id, "action": "typing"})
+
         response = await agent_executor.ainvoke({
             "input": user_input,
             "chat_history": chat_history.messages
         })
-        
         output = response["output"]
         
         # 4. Simpan ke memori
@@ -96,7 +98,10 @@ async def handle_telegram_webhook(update: Update):
 
     except Exception as e:
         print(f"Error dari Agent: {e}")
-        output = f"Maaf, terjadi error: {e}"
+        # Tambahkan traceback untuk detail error
+        import traceback
+        traceback.print_exc() 
+        output = f"Maaf, terjadi error saat memproses permintaan Anda: {e}"
 
     # 5. Kirim balasan ke Telegram
     await send_telegram_reply(chat_id, output)
