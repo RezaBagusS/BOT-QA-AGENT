@@ -13,16 +13,16 @@ from config import settings # Impor settings
 
 logger = logging.getLogger(__name__)
 
+# --- Pydantic Models ---
+class Chat(BaseModel):
+    id: int
+
 class Message(BaseModel):
     message_id: int # Tambahkan message_id
     chat: Chat
     text: str | None = None
     document: Document | None = None
     reply_to_message: 'Message' | None = None # <<< TAMBAHKAN REKURSIF (atau buat model terpisah yg lebih simpel)
-
-# --- Pydantic Models ---
-class Chat(BaseModel):
-    id: int
 
 class Document(BaseModel): # <<< TAMBAHKAN INI
     file_id: str
