@@ -64,7 +64,7 @@ def get_qa_agent_executor():
     tools = [read_pdf_content, create_testcase]
 
     agent_llm = ChatGoogleGenerativeAI(
-        model="gemini-1.5-pro-latest",
+        model="gemini-2.5-pro",
         temperature=0,
         google_api_key=settings.google_api_key # <<< Ambil dari config
     )

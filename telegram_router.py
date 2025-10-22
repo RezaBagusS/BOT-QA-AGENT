@@ -38,10 +38,9 @@ async def handle_help(chat_id: int, service: TelegramService):
     """Handler untuk perintah /help."""
     help_text = """
 Berikut perintah yang tersedia:
-`/start` - Memulai bot.
-`/help` - Menampilkan bantuan ini.
-`/create_tc` - Membuat test case (perlu konteks).
-... (tambahkan perintah lain) ...
+/start - Memulai bot.
+/help - Menampilkan bantuan ini.
+/create_tc - Membuat test case (perlu konteks)
 """
     await service.send_reply(chat_id, help_text)
 
