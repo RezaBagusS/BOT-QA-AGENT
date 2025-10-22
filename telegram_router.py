@@ -17,22 +17,17 @@ logger = logging.getLogger(__name__)
 class Chat(BaseModel):
     id: int
 
-class Message(BaseModel):
-    message_id: int # Tambahkan message_id
-    chat: Chat
-    text: str | None = None
-    document: Document | None = None
-    reply_to_message: 'Message' | None = None # <<< TAMBAHKAN REKURSIF (atau buat model terpisah yg lebih simpel)
-
 class Document(BaseModel): # <<< TAMBAHKAN INI
     file_id: str
     file_name: str | None = None
     mime_type: str | None = None
 
 class Message(BaseModel):
+    message_id: int # Tambahkan message_id
     chat: Chat
     text: str | None = None
-    document: Document | None = None # <<< TAMBAHKAN INI
+    document: Document | None = None
+    reply_to_message: 'Message' | None = None # <<< TAMBAHKAN REKURSIF (atau buat model terpisah yg lebih simpel)
 
 class Update(BaseModel):
     update_id: int
