@@ -13,6 +13,13 @@ from config import settings # Impor settings
 
 logger = logging.getLogger(__name__)
 
+class Message(BaseModel):
+    message_id: int # Tambahkan message_id
+    chat: Chat
+    text: str | None = None
+    document: Document | None = None
+    reply_to_message: 'Message' | None = None # <<< TAMBAHKAN REKURSIF (atau buat model terpisah yg lebih simpel)
+
 # --- Pydantic Models ---
 class Chat(BaseModel):
     id: int
@@ -85,35 +92,70 @@ async def handle_clear_context(chat_id: int, service: TelegramService, memory: B
     memory.set_context(session_id, None) # Hapus konteks
     await service.send_reply(chat_id, "✅ Konteks berhasil dihapus.")
 
-async def handle_create_tc(chat_id: int, text: str, service: TelegramService, memory: BaseMemoryService, agent: AgentExecutor):
-    """Handler untuk /create_tc."""
+# Di dalam fungsi handle_telegram_webhook atau handler /create_tc di telegram_router.py
+
+async def handle_create_tc(
+    chat_id: int,
+    text: str, # Perintah asli (/create_tc ...)
+    update: Update, # <<< TAMBAHKAN parameter update
+    service: TelegramService,
+    memory: BaseMemoryService,
+    agent: AgentExecutor
+):
+    """Handler untuk /create_tc, sekarang bisa pakai reply."""
     session_id = str(chat_id)
-    context = memory.get_context(session_id)
+    context = None # Mulai dengan konteks kosong
+
+    # --- LOGIKA BARU: Cek Reply ---
+    replied_message = update.message.reply_to_message if update.message else None
+    if replied_message:
+        logger.info(f"Perintah /create_tc adalah balasan ke pesan {replied_message.message_id}")
+        if replied_message.text:
+            context = replied_message.text
+            logger.info("Mengambil konteks dari teks pesan yang dibalas.")
+        elif replied_message.document and replied_message.document.mime_type == 'application/pdf':
+            # Jika membalas PDF, idealnya kita trigger ekstraksi PDF di sini
+            # Untuk sekarang, kita beri tahu pengguna untuk upload lagi atau pakai /set_context
+            # (Karena handle_pdf_upload dijalankan terpisah saat ini)
+            logger.warning("Membalas ke PDF belum didukung secara langsung di /create_tc. Ekstraksi seharusnya terjadi saat upload.")
+            await service.send_reply(chat_id, "ℹ️ Membalas ke PDF belum didukung langsung oleh perintah ini. Silakan pastikan PDF sudah diupload sebelumnya atau gunakan `/set_context`.")
+            # Alternatif: Panggil handle_pdf_upload secara internal (lebih kompleks)
+            # await handle_pdf_upload(chat_id, replied_message.document, service, memory)
+            # context = memory.get_context(session_id) # Coba ambil konteks setelah ekstraksi
+            return # Hentikan proses jika membalas PDF (untuk saat ini)
+        else:
+             logger.warning("Membalas ke pesan yang bukan teks atau PDF.")
+             await service.send_reply(chat_id, "ℹ️ Anda hanya bisa membalas ke pesan teks atau PDF untuk dijadikan konteks.")
+             return
+    # ----------------------------
+
+    # --- Fallback ke Konteks Tersimpan ---
+    if not context:
+        logger.info("Tidak ada balasan atau konteks dari balasan, mencoba mengambil konteks tersimpan.")
+        context = memory.get_context(session_id)
+    # -----------------------------------
 
     if not context:
-        await service.send_reply(chat_id, "⚠️ Konteks PRD belum diatur. Kirim PDF atau gunakan `/set_context` dulu.")
+        await service.send_reply(chat_id, "⚠️ Konteks PRD belum ditemukan. Balas pesan berisi teks/PDF atau gunakan `/set_context` dulu.")
         return
 
     # Tentukan format (default 'steps')
     parts = text.split(maxsplit=1)
     format_choice = parts[1].lower() if len(parts) > 1 and parts[1].lower() in ["steps", "bdd"] else "steps"
 
-    logger.info(f"Meminta pembuatan test case format '{format_choice}' untuk session {session_id}")
+    logger.info(f"Meminta pembuatan test case format '{format_choice}' untuk session {session_id} menggunakan konteks yang ditemukan.")
     await service.send_typing_action(chat_id)
     history = memory.get_history(session_id)
 
     try:
-        # Minta agen menggunakan tool dengan format dan konteks
-        # Kita gabungkan konteks ke input agar agen tahu sumbernya
         agent_input = f"Buatkan test case dalam format '{format_choice}' berdasarkan PRD berikut:\n\n{context}"
-
         response = await agent.ainvoke({
             "input": agent_input,
             "chat_history": history.messages
         })
         output = response["output"]
 
-        history.add_user_message(text) # Simpan perintah asli
+        history.add_user_message(text)
         history.add_ai_message(output)
         memory.save_history(session_id, history)
         await service.send_reply(chat_id, output)
@@ -121,7 +163,6 @@ async def handle_create_tc(chat_id: int, text: str, service: TelegramService, me
     except Exception as e:
         logger.error(f"Error saat handle_create_tc: {e}", exc_info=True)
         await service.send_reply(chat_id, f"Error: {e}")
-
 
 # --- Pemetaan Command ---
 command_handlers = {
@@ -243,8 +284,7 @@ async def handle_telegram_webhook(
         elif command in ["/show_context", "/clear_context"]:
              await handler(chat_id, telegram_service, memory_service)
         elif command in ["/create_tc"]:
-             await handler(chat_id, user_input, telegram_service, memory_service, agent_executor)
-        # Tambahkan else if untuk command lain jika butuh argumen berbeda
+             await handle_create_tc(chat_id, user_input, update, telegram_service, memory_service, agent_executor)
 
         return Response(status_code=200)
 
