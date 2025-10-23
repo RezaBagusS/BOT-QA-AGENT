@@ -44,10 +44,72 @@ user_states = {}
 
 # --- Command Handlers ---
 
+Ya, itu bisa dilakukan dengan menggunakan Reply Keyboard.
+
+Ini berbeda dari InlineKeyboard (yang baru saja Anda buat untuk 'steps'/'bdd') yang menempel pada pesan. Reply Keyboard adalah tombol-tombol yang muncul di bagian bawah layar, menggantikan keyboard teks pengguna.
+
+Saat pengguna mengklik tombol ini, Telegram akan mengirim pesan teks biasa (seolah-olah pengguna mengetiknya sendiri). Ini sempurna untuk perintah utama seperti /start, /help, atau /create-testcase.
+
+Kita akan memodifikasi telegram_router.py Anda di 3 tempat:
+
+Menambahkan dictionary baru untuk memetakan teks tombol ke perintah.
+
+Memperbarui handle_start untuk mengirim keyboard ini saat bot dimulai.
+
+Memperbarui handle_telegram_webhook untuk menerjemahkan klik tombol ini.
+
+Perubahan pada telegram_router.py
+1. Tambahkan Pemetaan Tombol (di bagian atas file)
+Letakkan ini di bawah command_handlers Anda. Kita melakukan ini agar tombol bisa memiliki teks yang "cantik" (misal: "🚀 Buat Test Case") tapi tetap memanggil command Anda (/create-testcase).
+
+Python
+
+# ... (di bawah command_handlers) ...
+
+command_handlers = {
+    "/start": handle_start,
+    "/help": handle_help,
+    "/create-testcase": handle_create_case,
+    "/cancel": handle_cancel
+}
+
+# --- BARU: Pemetaan Teks Tombol ke Command ---
+# Ini untuk menerjemahkan teks tombol yang friendly ke command teknis
+button_text_to_command = {
+    "🚀 Buat Test Case": "/create-testcase",
+    "❓ Bantuan": "/help",
+    "❌ Batalkan Aksi": "/cancel"
+    # Anda juga bisa menambahkan "👋 Mulai Ulang" : "/start" jika mau
+}
+
+# --- Webhook Endpoint ---
+# ... (sisanya) ...
+2. Modifikasi handle_start (Untuk Mengirim Keyboard)
+Kita ubah handle_start agar tidak hanya mengirim teks, tapi juga mengirim ReplyKeyboard.
+
+Python
+
 async def handle_start(chat_id: int, service: TelegramService):
     user_states.pop(chat_id, None) 
-    welcome_message = "Halo! 👋 Saya adalah QA Agent Anda. Gunakan /help untuk melihat bantuan yang tersedia."
-    await service.send_reply(chat_id, welcome_message)
+    welcome_message = "Halo! 👋 Saya adalah QA Agent Anda. Silakan pilih tindakan dari menu di bawah."
+
+    # --- LOGIKA KEYBOARD BARU (REPLY KEYBOARD) ---
+    # Ini adalah tombol-tombol yang muncul di bawah
+    reply_keyboard = [
+        [ {"text": "🚀 Buat Test Case"} ], # Baris 1
+        [ {"text": "❓ Bantuan"}, {"text": "❌ Batalkan Aksi"} ]  # Baris 2
+    ]
+
+    # Ini adalah struktur JSON untuk ReplyKeyboard
+    reply_markup = {
+        "keyboard": reply_keyboard,
+        "resize_keyboard": True, # Bikin keyboard pas di layar
+        "selective": True        # Hanya tampilkan untuk user ini (opsional)
+    }
+    # --- AKHIR LOGIKA KEYBOARD BARU ---
+
+    # Kirim pesan selamat datang BESERTA keyboard-nya
+    await service.send_reply(chat_id, welcome_message, reply_markup=reply_markup)
 
 async def handle_create_case(chat_id: int, service: TelegramService):
     """Handler untuk perintah /create-testcase."""
@@ -98,6 +160,13 @@ command_handlers = {
     "/help": handle_help,
     "/create-testcase": handle_create_case,
     "/cancel": handle_cancel
+}
+
+button_text_to_command = {
+    "🚀 Buat Test Case": "/create-testcase",
+    "❓ Bantuan": "/help",
+    "❌ Batalkan Aksi": "/cancel"
+    # Anda juga bisa menambahkan "👋 Mulai Ulang" : "/start" jika mau
 }
 
 # --- Webhook Endpoint (Dimodifikasi Total) ---
@@ -157,8 +226,10 @@ async def handle_telegram_webhook(
     logger.info(f"Pesan teks dari [Chat ID: {chat_id}]: {user_input}")
     logger.info(f"Logger info untuk cek user states: {user_states}")
 
+    command_to_run = button_text_to_command.get(user_input, user_input)
+
     # 1. Cek apakah ini command
-    handler = command_handlers.get(user_input)
+    handler = command_handlers.get(command_to_run)
     if handler:
         logger.debug(f"Menjalankan command handler untuk: {user_input}")
         await handler(chat_id, telegram_service)
