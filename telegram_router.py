@@ -69,6 +69,9 @@ async def handle_start(chat_id: int, service: TelegramService):
 async def handle_create_case(chat_id: int, service: TelegramService):
     """Handler untuk perintah /create-testcase."""
     user_states[chat_id] = {"state": "WAITING_FOR_FORMAT", "data": {}}
+
+    logger.info(f"Logger info untuk cek user states: {user_states}")
+
     message = (
         "Baik, mari kita mulai buat test case nya.\n\n"
         "Anda ingin format apa?\n"
@@ -133,6 +136,8 @@ async def handle_telegram_webhook(
     memory_service: BaseMemoryService = Depends(get_memory_service)
 ):
     """Endpoint utama yang menerima update dari Telegram."""
+
+    logger.info(f"Logger info untuk cek user states: {user_states}")
 
     # --- LOGIKA BARU 1: Menangani Klik Tombol (CallbackQuery) ---
     if update.callback_query:
