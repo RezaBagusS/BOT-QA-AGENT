@@ -137,8 +137,6 @@ async def handle_telegram_webhook(
 ):
     """Endpoint utama yang menerima update dari Telegram."""
 
-    logger.info(f"Logger info untuk cek user states: {user_states}")
-
     # --- LOGIKA BARU 1: Menangani Klik Tombol (CallbackQuery) ---
     if update.callback_query:
         # Ambil data penting dari callback
@@ -160,12 +158,17 @@ async def handle_telegram_webhook(
                 "data": {"format": chosen_format}
             }
 
+            logger.info(f"Logger info untuk cek user states: {user_states}")
+
             # Edit pesan asli (yang ada tombolnya) menjadi pesan instruksi berikutnya
             new_text = (
                 f"👍 Format `{chosen_format}` dipilih.\n\n"
-                "Sekarang, silakan kirimkan **deskripsi PRD** Anda."
+            )
+            next_text = (
+                f"Sekarang, silakan kirimkan **deskripsi PRD** Anda."
             )
             await telegram_service.edit_message_text(chat_id, message_id, new_text)
+            await telegram_service.send_reply(chat_id, new_text)
         
         # (Tambahan) Anda bisa menangani callback "action:cancel" di sini
         elif data == "action:cancel":
