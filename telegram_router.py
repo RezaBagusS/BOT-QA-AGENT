@@ -168,7 +168,7 @@ async def handle_telegram_webhook(
                 f"Sekarang, silakan kirimkan **deskripsi PRD** Anda."
             )
             await telegram_service.edit_message_text(chat_id, message_id, new_text)
-            await telegram_service.send_reply(chat_id, new_text)
+            await telegram_service.send_reply(chat_id, next_text)
         
         # (Tambahan) Anda bisa menangani callback "action:cancel" di sini
         elif data == "action:cancel":
