@@ -74,6 +74,15 @@ class TelegramService:
         except Exception as e:
             logger.error(f"Gagal mengedit pesan {message_id} di chat {chat_id}: {e}")
 
+    async def send_typing_action(self, chat_id: int):
+        """Mengirim aksi 'sedang mengetik'."""
+        try:
+            await self.http_client.post(
+                f"{self.api_url}/sendChatAction",
+                json={"chat_id": chat_id, "action": "typing"}
+            )
+        except Exception as e:
+            logger.warning(f"Gagal mengirim typing action ke {chat_id}: {e}")
 
 # Dependency function (Tidak berubah)
 async def get_telegram_service():
