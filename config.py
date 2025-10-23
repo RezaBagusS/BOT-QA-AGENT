@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     google_api_key: str = os.getenv("GOOGLE_API_KEY", "YOUR_FALLBACK_KEY")
     telegram_api_url: str = f"https://api.telegram.org/bot{os.getenv('TELEGRAM_BOT_TOKEN')}"
     model: str = "gemini-2.5-pro"
+    redis_url: str = os.getenv("REDIS_URL", "YOUR_FALLBACK_KEY")
     # Tambahkan konfigurasi lain jika perlu
 
     class Config:
