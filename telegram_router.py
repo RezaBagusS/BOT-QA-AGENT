@@ -155,6 +155,7 @@ async def handle_telegram_webhook(
     session_id = str(chat_id) 
 
     logger.info(f"Pesan teks dari [Chat ID: {chat_id}]: {user_input}")
+    logger.info(f"Logger info untuk cek user states: {user_states}")
 
     # 1. Cek apakah ini command
     handler = command_handlers.get(user_input)
